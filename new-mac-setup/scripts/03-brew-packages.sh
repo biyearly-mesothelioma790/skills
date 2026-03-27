@@ -100,7 +100,7 @@ CASKS=(
     visual-studio-code
 
     # Browsers
-    arc
+    thebrowsercompany-dia
 
     # Communication
     slack
@@ -165,8 +165,20 @@ echo "✅ Step 3 complete! All packages and apps installed."
 echo ""
 echo "💡 Apps that need manual download:"
 echo "   - Wispr Flow: https://wispr.com"
-echo "   - Windsurf: https://windsurf.com/download/editor"
 echo "   - Screenflow 11: https://www.telestream.net/screenflow/"
 echo "   - App Quitter: https://appquitter.com"
+echo "   - Clipbook: https://clipbook.app"
+echo ""
+echo "🔑 Opening apps that need login..."
+open -a "Slack" 2>/dev/null
+open -a "Discord" 2>/dev/null
+open -a "Raycast" 2>/dev/null
+open -a "Shottr" 2>/dev/null
+open -a "1Password" 2>/dev/null
+open -a "Spotify" 2>/dev/null
+open -a "Zoom" 2>/dev/null
+open -a "Dia" 2>/dev/null
+open -a "Claude" 2>/dev/null
+echo "   Sign into each app above, then continue setup."
 echo ""
 echo "   Run ./04-dev-environment.sh next."

@@ -28,9 +28,9 @@ The setup is opinionated. The core opinions:
 - **Node**: fnm (not nvm — fnm is faster), pnpm as package manager
 - **Python**: uv from Astral (not pyenv, not pip, not conda — uv is dramatically faster and handles both venvs and package installs)
 - **Docker**: Colima (not Docker Desktop — lighter weight, CLI-native, free)
-- **Editor**: Cursor + Windsurf (AI-native editors)
-- **AI tools**: Claude Code, Gemini CLI, Ollama for local models
-- **Browser**: Arc
+- **Editor**: Cursor (AI-native editor)
+- **AI tools**: Claude Code, Codex CLI, Ollama for local models
+- **Browser**: Dia (from The Browser Company, successor to Arc)
 - **Launcher**: Raycast (replaces Alfred, Spotlight, Caffeine, window management)
 - **Voice**: Wispr Flow for voice-to-text
 - **Screenshots**: Shottr (includes OCR)
@@ -64,7 +64,7 @@ The scripts should run in this order:
 02-shell-setup.sh          # Oh-My-ZSH + plugins + fonts
 03-brew-packages.sh        # All brew formulae + cask apps
 04-dev-environment.sh      # Node (fnm), Python (uv), Git, Docker
-05-ai-tools.sh             # Claude Code, Ollama models, llama.cpp
+05-ai-tools.sh             # Claude Code, Codex CLI, Ollama models, llama.cpp
 06-dotfiles.sh             # .zshrc + Ghostty config
 07-macos-settings.sh       # System preferences via defaults commands
 00-run-all.sh              # Master runner (runs 01-07 in order)
@@ -140,7 +140,7 @@ ghostty
 cursor, visual-studio-code
 
 # Browser
-arc
+thebrowsercompany-dia
 
 # Communication
 slack, discord, zoom
@@ -214,14 +214,32 @@ These can't be automated via `defaults write`:
 ## Apps to Download Manually
 
 These aren't in Homebrew or need manual install:
-- [Wispr Flow](https://wispr.com) — voice-to-text
-- [Windsurf](https://windsurf.com/download/editor) — AI code editor
-- [Claude Desktop](https://claude.ai/download) — desktop AI chat
-- [ChatGPT Desktop](https://chat.openai.com/download)
-- [Screenflow](https://www.telestream.net/screenflow/) — screen recording
+- [Wispr Flow](https://wispr.com) — voice-to-text (2025 pick)
+- [SuperWhisper](https://superwhisper.com) — voice-to-text (2024 pick, still good)
+- [Screenflow 11](https://www.telestream.net/screenflow/) — screen recording
 - [App Quitter](https://appquitter.com) — close apps when windows close
+- [Clipbook](https://clipbook.app) or Alfred — clipboard manager
 
-## Browser Extensions (install in Arc/Chrome)
+## Post-Install: Open Apps That Need Login
+
+After all scripts finish, open these apps to sign in and configure them. The skill should auto-open them for the user:
+
+```bash
+# Apps that need login/activation after install
+open -a "Slack"
+open -a "Discord"
+open -a "Raycast"
+open -a "Shottr"
+open -a "1Password"
+open -a "Spotify"
+open -a "Zoom"
+open -a "Dia"
+open -a "GitHub Desktop" 2>/dev/null
+open -a "Claude" 2>/dev/null
+echo "🔑 Sign into each app above, then continue setup."
+```
+
+## Browser Extensions (install in Dia/Chrome)
 
 Essential:
 - uBlock Origin, Privacy Badger, Video Speed Controller (highly recommended)
@@ -244,8 +262,7 @@ Things worth considering that aren't in the original blog posts but complement t
 6. **ripgrep** — faster `grep` (rg)
 7. **fzf** — fuzzy finder for shell history, files, everything
 8. **starship** — cross-shell prompt (alternative to powerlevel10k, works with fish too)
-9. **Karabiner-Elements** — deep keyboard customization (remap Caps Lock to Hyper key, etc.)
-10. **Bartender** or **Ice** — menu bar icon management (declutter)
+9. **Bartender** or **Ice** — menu bar icon management (declutter)
 11. **Hand Mirror** — quick webcam check from menu bar (great before calls)
 12. **Tailscale** — mesh VPN for accessing home machines
 13. **Orbstack** — another Docker Desktop alternative (even lighter than Colima)

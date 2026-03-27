@@ -28,25 +28,16 @@ echo "   📦 Adding Playwright MCP to Claude Code..."
 claude mcp add playwright -- npx -y @playwright/mcp@latest 2>/dev/null || echo "   ⚠️  Playwright MCP setup skipped (run manually later)"
 
 # =============================================================================
-# GEMINI CLI
-# =============================================================================
-echo ""
-echo "📦 Installing Gemini CLI..."
-if command -v gemini &>/dev/null; then
-    echo "   ✅ Gemini CLI already installed"
-else
-    npm install -g @anthropic-ai/claude-code 2>/dev/null || true
-    # Gemini CLI install (check latest method)
-    npx -y @anthropic-ai/claude-code 2>/dev/null || true
-    echo "   💡 Install Gemini CLI manually: npm install -g @google/gemini-cli"
-fi
-
-# =============================================================================
-# OPENAI CODEX
+# OPENAI CODEX CLI
 # =============================================================================
 echo ""
 echo "📦 Installing OpenAI Codex CLI..."
-npm i -g @openai/codex 2>/dev/null || echo "   ⚠️  OpenAI Codex install skipped"
+if command -v codex &>/dev/null; then
+    echo "   ✅ Codex CLI already installed"
+else
+    npm install -g @openai/codex
+    echo "   ✅ Codex CLI installed"
+fi
 
 # =============================================================================
 # OLLAMA — Local AI Models

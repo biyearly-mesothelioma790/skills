@@ -111,7 +111,6 @@ alias ys="pnpm run start || npm run start"
 # =============================================================================
 # ALIASES — Editors & Tools
 # =============================================================================
-alias wind="windsurf"
 alias cc="claude --dangerously-skip-permissions"
 alias co="codex --dangerously-bypass-approvals-and-sandbox"
 alias fucking=sudo
