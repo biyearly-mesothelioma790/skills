@@ -1,4 +1,4 @@
-# Swyx 2025 New Mac Setup — Quick Reference
+# Swyx 2026 New Mac Setup — Quick Reference
 
 Based on [swyx.io/new-mac-setup](https://www.swyx.io/new-mac-setup) (2025) and [swyx.io/new-mac-setup-2024](https://www.swyx.io/new-mac-setup-2024)
 
