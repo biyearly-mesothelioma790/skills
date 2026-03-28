@@ -30,6 +30,7 @@ The setup is opinionated. The core opinions:
 - **Docker**: Colima (not Docker Desktop — lighter weight, CLI-native, free)
 - **Editor**: Cursor (AI-native editor)
 - **AI tools**: Claude Code, Codex CLI, Ollama for local models
+- **Agent notifications**: peon-ping shared across Claude Code, Codex, and Cursor, tuned to notify only when useful
 - **Browser**: Dia (from The Browser Company, successor to Arc)
 - **Launcher**: Raycast (replaces Alfred, Spotlight, Caffeine, window management)
 - **Voice**: Wispr Flow for voice-to-text
@@ -124,7 +125,7 @@ openssl@3, readline, sqlite, xz, zstd
 postgresql@14, rabbitmq
 
 # Misc CLI
-honcho, pipx, flyctl, entr, tig, mas
+honcho, pipx, flyctl, entr, tig, mas, terminal-notifier
 
 # Libraries
 cairo, glib, harfbuzz, libvmaf, webp
@@ -179,6 +180,36 @@ These tools were suggested by Claude during the initial setup session and accept
 undollar, npm-check-updates, trash-cli,
 @anthropic-ai/claude-code, @openai/codex
 ```
+
+### peon-ping Defaults
+
+When setting up AI tools on a new Mac, also install and configure `peon-ping` with these defaults:
+
+- Install globally with the shared runtime under `~/.claude/hooks/peon-ping/` so Claude Code, Codex, and Cursor can all use the same install.
+- Register Claude Code hooks normally via the installer.
+- Register Codex manually in `~/.codex/config.toml`:
+  ```toml
+  notify = ["bash", "/Users/$USER/.claude/hooks/peon-ping/adapters/codex.sh"]
+  ```
+- Keep Cursor hooked up if `~/.cursor/` exists.
+- Use `default_pack: "peon"` as the fallback pack.
+- Install this rotation pool:
+  `glados`, `jarvis`, `r2d2`, `peasant`, `sc_kerrigan`, `sc_scv`, `sc_marine`, `sc_raynor`, `sc_ghost`, `sc_terran`, `protoss`, `sc2_alarak`, `sc2_abathur`, `ra2_eva_commander`, `ra2_kirov`, `ra2_yuri`, `ra_soviet`, `ccg_gla_worker`, `ccg_us_dozer`, `ccg_china_dozer`
+- Set `pack_rotation_mode` to `round-robin`.
+- Set `volume` to `0.2`.
+- Keep `desktop_notifications` enabled, but use `notification_style: "standard"` rather than large overlays.
+- Install `terminal-notifier` via Homebrew so standard macOS notifications work reliably and support click-to-focus behavior.
+- Set `suppress_sound_when_tab_focused: true`.
+- Set `silent_window_seconds: 30` so `task.complete` only fires for longer-running work.
+- Categories:
+  - `session.start: false`
+  - `task.acknowledge: false`
+  - `task.complete: true`
+  - `task.error: true`
+  - `input.required: true`
+  - `resource.limit: true`
+  - `user.spam: false`
+- Goal: alerts only for meaningful attention events, with completion sounds reserved for work that took long enough to matter.
 
 ### Ollama Models (for 24GB RAM)
 

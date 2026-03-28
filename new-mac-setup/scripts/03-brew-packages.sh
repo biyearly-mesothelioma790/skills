@@ -59,6 +59,7 @@ FORMULAE=(
     flyctl          # Fly.io CLI
     entr            # File watcher
     tig             # Git TUI
+    terminal-notifier # Better standard macOS notifications
 
     # Mac App Store CLI
     mas             # Install App Store apps from CLI
