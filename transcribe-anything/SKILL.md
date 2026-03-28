@@ -1,5 +1,5 @@
 ---
-name: transcribe
+name: transcribe-anything
 description: |
   Transcribes audio and video files to text using pluggable ASR backends. Default backend is local whisper CLI (openai-whisper). Supports whisperX (with diarization), insanely-fast-whisper, faster-whisper, whisper.cpp, OpenAI Whisper API, Groq Whisper API, Deepgram, AssemblyAI, Gemini, and Hugging Face models. Handles very long files (1-8+ hours) by preprocessing with ffmpeg: extracts audio from video, converts to optimal ASR format, detects and skips silence, and chunks for API size limits. Supports speaker diarization, word-level timestamps, custom vocabulary, and multiple output formats. Use this skill when someone says "transcribe this", "convert to text", "speech to text", "get the transcript", "transcribe this video/audio/podcast/recording", or provides a media file and wants text output.
 license: MIT
@@ -13,34 +13,111 @@ metadata:
   primary-tools: ffmpeg, whisper, whisperx, yt-dlp
 ---
 
-# Transcribe
+# Transcribe Anything
 
 Transcribes audio and video files to text. Pluggable backends, silence skipping for long files, optional speaker diarization, and multiple output formats.
 
-## Prerequisites
+## Setup
 
-**Always required:**
+### Required (install these first)
+
 ```bash
-which ffmpeg || brew install ffmpeg
+# ffmpeg — audio extraction, preprocessing, silence detection
+brew install ffmpeg
+
+# yt-dlp — downloading video/audio from URLs (optional but recommended)
+brew install yt-dlp
+
+# Default ASR backend — OpenAI's whisper CLI
+pip3 install --break-system-packages openai-whisper
 ```
 
-**Default backend (local whisper):**
-```bash
-which whisper || pip3 install --break-system-packages openai-whisper
-```
+### Recommended Extras
 
-**For diarization (whisperX — preferred):**
 ```bash
+# curl_cffi — prevents OAuth errors when downloading private videos
+pip3 install --break-system-packages curl_cffi
+
+# faster-whisper — 4x faster than whisper, built-in VAD silence skipping, lower memory
+# Best local backend for long files (1hr+)
+pip3 install --break-system-packages faster-whisper
+
+# whisperX — adds speaker diarization + precise word-level timestamps
+# Bundles faster-whisper + pyannote alignment
 pip3 install --break-system-packages whisperx
 ```
 
-Note: whisperX bundles faster-whisper + pyannote alignment + speaker diarization. It requires a Hugging Face token with access to `pyannote/speaker-diarization-3.1` and `pyannote/segmentation-3.0` (accept terms at those HF model pages). If the user doesn't have HF token access, fall back to whisper without diarization.
+**whisperX diarization setup** (one-time):
+1. Create a Hugging Face account at https://huggingface.co
+2. Accept the terms for these gated models:
+   - https://huggingface.co/pyannote/speaker-diarization-3.1
+   - https://huggingface.co/pyannote/segmentation-3.0
+3. Create an access token at https://huggingface.co/settings/tokens
+4. Set `export HF_TOKEN=hf_...` in your shell profile
 
-**Other optional backends:**
+Without HF token access, whisperX still works for transcription and word alignment — just no speaker labels.
+
+### Other Local Backends (optional, pick what you need)
+
 ```bash
-pip3 install --break-system-packages insanely-fast-whisper  # GPU batched inference
-pip3 install --break-system-packages faster-whisper          # CTranslate2, efficient
-brew install whisper-cpp                                     # C++ native, Metal acceleration
+# insanely-fast-whisper — batched GPU inference, 10-20x faster on NVIDIA GPUs
+pip3 install --break-system-packages insanely-fast-whisper
+
+# whisper.cpp — C++ native with Metal acceleration on Apple Silicon
+# Best option if you want to avoid Python entirely
+brew install whisper-cpp
+```
+
+### Cloud API Keys (optional)
+
+Set these environment variables if you want to use cloud backends. None are required — local whisper works out of the box.
+
+```bash
+# OpenAI — best accuracy with gpt-4o-transcribe ($0.006/min)
+export OPENAI_API_KEY=sk-...
+
+# Groq — cheapest and fastest cloud option ($0.00004/min with turbo)
+export GROQ_API_KEY=gsk_...
+
+# Deepgram — best cloud diarization ($0.0043/min)
+export DEEPGRAM_API_KEY=...
+
+# AssemblyAI — cloud diarization + auto-chapters ($0.0062/min)
+export ASSEMBLYAI_API_KEY=...
+
+# Gemini — handles 9.5hr files natively, flexible prompting
+export GEMINI_API_KEY=...
+```
+
+### Verify Your Setup
+
+Run this to check what's available:
+
+```bash
+echo "=== Required ==="
+which ffmpeg && echo "ffmpeg: OK" || echo "ffmpeg: MISSING (brew install ffmpeg)"
+which whisper && echo "whisper: OK" || echo "whisper: MISSING (pip3 install --break-system-packages openai-whisper)"
+
+echo ""
+echo "=== Local Backends ==="
+which whisperx && echo "whisperx: OK" || echo "whisperx: not installed"
+python3 -c "import faster_whisper" 2>/dev/null && echo "faster-whisper: OK" || echo "faster-whisper: not installed"
+which insanely-fast-whisper 2>/dev/null && echo "insanely-fast-whisper: OK" || echo "insanely-fast-whisper: not installed"
+which whisper-cpp 2>/dev/null && echo "whisper.cpp: OK" || echo "whisper.cpp: not installed"
+
+echo ""
+echo "=== Cloud APIs ==="
+[ -n "$OPENAI_API_KEY" ] && echo "OpenAI: configured" || echo "OpenAI: not set"
+[ -n "$GROQ_API_KEY" ] && echo "Groq: configured" || echo "Groq: not set"
+[ -n "$DEEPGRAM_API_KEY" ] && echo "Deepgram: configured" || echo "Deepgram: not set"
+[ -n "$ASSEMBLYAI_API_KEY" ] && echo "AssemblyAI: configured" || echo "AssemblyAI: not set"
+[ -n "$GEMINI_API_KEY" ] && echo "Gemini: configured" || echo "Gemini: not set"
+
+echo ""
+echo "=== Optional ==="
+which yt-dlp && echo "yt-dlp: OK" || echo "yt-dlp: not installed (brew install yt-dlp)"
+python3 -c "import curl_cffi" 2>/dev/null && echo "curl_cffi: OK" || echo "curl_cffi: not installed"
+[ -n "$HF_TOKEN" ] && echo "HF token: configured (diarization ready)" || echo "HF token: not set (no diarization)"
 ```
 
 ## Backend Selection Guide
