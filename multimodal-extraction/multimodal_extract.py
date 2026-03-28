@@ -7,8 +7,10 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.request
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse, urlunparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import parse_qs, urlparse
 
 
 DEFAULT_OUTPUT_DIR = str(Path.home() / "Downloads" / "multimodal_output")
@@ -16,6 +18,10 @@ DEFAULT_TOP_N = 4
 DEFAULT_WHISPER_MODEL = "turbo"
 DEFAULT_LANGUAGE = "en"
 DEFAULT_IMAGE_WIDTH = 860
+DEFAULT_MODE = "swift"
+BURST_GAP_SEC = 8.0
+BURST_MAX_SPAN_SEC = 20.0
+BURST_GRID_IMAGE_WIDTH = 260
 
 
 def format_elapsed(seconds):
@@ -38,6 +44,7 @@ def parse_args(argv):
     language = DEFAULT_LANGUAGE
     whisper_model = DEFAULT_WHISPER_MODEL
     top_n = DEFAULT_TOP_N
+    mode = DEFAULT_MODE
 
     args = argv[1:]
     i = 0
@@ -52,6 +59,9 @@ def parse_args(argv):
         elif arg == "--top-n":
             i += 1
             top_n = int(args[i])
+        elif arg == "--mode":
+            i += 1
+            mode = args[i]
         else:
             positional.append(arg)
         i += 1
@@ -65,6 +75,7 @@ def parse_args(argv):
         "language": language,
         "whisper_model": whisper_model,
         "top_n": top_n,
+        "mode": mode,
     }
 
 
@@ -128,6 +139,12 @@ def youtube_timestamp_url(base_url, timestamp_sec):
     if not normalized:
         return None
     return f"{normalized}&t={max(0, int(timestamp_sec))}s"
+
+
+def detect_llm_backend():
+    if os.environ.get("OPENAI_API_KEY"):
+        return "openai"
+    return None
 
 
 def run(cmd, label, cwd=None):
@@ -313,6 +330,155 @@ def build_visual_anchors(visuals_dir):
     return grouped
 
 
+def cluster_visual_groups(groups):
+    clusters = []
+    current = None
+
+    for group in groups:
+        only_slides = all(image["kind"] == "slide" for image in group["images"])
+        if current is None:
+            current = {
+                "timestamp_sec": group["timestamp_sec"],
+                "timestamp": group["timestamp"],
+                "images": list(group["images"]),
+                "burst": False,
+            }
+            continue
+
+        current_only_slides = all(image["kind"] == "slide" for image in current["images"])
+        gap = group["timestamp_sec"] - current["images"][-1]["timestamp_sec"]
+        span = group["timestamp_sec"] - current["timestamp_sec"]
+
+        if only_slides and current_only_slides and gap <= BURST_GAP_SEC and span <= BURST_MAX_SPAN_SEC:
+            current["images"].extend(group["images"])
+            current["burst"] = True
+        else:
+            clusters.append(current)
+            current = {
+                "timestamp_sec": group["timestamp_sec"],
+                "timestamp": group["timestamp"],
+                "images": list(group["images"]),
+                "burst": False,
+            }
+
+    if current is not None:
+        clusters.append(current)
+    return clusters
+
+
+def ocr_image_text(image_path):
+    try:
+        proc = subprocess.run(
+            [
+                "tesseract",
+                image_path,
+                "stdout",
+                "--psm",
+                "6",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            errors="ignore",
+            check=False,
+        )
+        text = " ".join(proc.stdout.split())
+        return text[:800]
+    except Exception:
+        return ""
+
+
+def enrich_slides_with_ocr(output_dir, groups):
+    if shutil.which("tesseract") is None:
+        return
+
+    tasks = {}
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        for group in groups:
+            for image in group["images"]:
+                if image["kind"] != "slide":
+                    continue
+                image_path = str((Path(output_dir) / image["image_relpath"]).resolve())
+                image["image_path"] = image_path
+                tasks[executor.submit(ocr_image_text, image_path)] = image
+
+        for future in as_completed(tasks):
+            image = tasks[future]
+            image["ocr_text"] = future.result()
+
+
+def transcript_text_only(lines):
+    texts = []
+    for line in lines:
+        parts = line.split("] ", 1)
+        texts.append(parts[1] if len(parts) == 2 else line)
+    return " ".join(texts).strip()
+
+
+def unique_slide_context_text(group):
+    seen = []
+    for image in group["images"]:
+        text = " ".join(str(image.get("ocr_text", "")).split()).strip()
+        if not text:
+            continue
+        if any(text == prior for prior in seen):
+            continue
+        seen.append(text)
+    return seen
+
+
+def heuristic_polish(slide_contexts, transcript_lines):
+    summary_bits = []
+    if slide_contexts:
+        summary_bits.append(f"Slides emphasize: {slide_contexts[0][:180]}")
+    if transcript_lines:
+        summary_bits.append(f"Speech covers: {transcript_text_only(transcript_lines)[:220]}")
+    return " ".join(summary_bits).strip()
+
+
+def llm_polish(slide_contexts, transcript_lines):
+    backend = detect_llm_backend()
+    if backend != "openai":
+        return heuristic_polish(slide_contexts, transcript_lines)
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    prompt = {
+        "model": "gpt-4.1-mini",
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "Write 1-2 short sentences that connect the nearby slide content with the nearby transcript. "
+                            "Be concrete, avoid fluff.\n\n"
+                            f"Slide context:\n{chr(10).join(slide_contexts[:3])}\n\n"
+                            f"Transcript:\n{chr(10).join(transcript_lines[:8])}"
+                        ),
+                    }
+                ],
+            }
+        ],
+    }
+    req = urllib.request.Request(
+        "https://api.openai.com/v1/responses",
+        data=json.dumps(prompt).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=40) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        text = data.get("output_text", "").strip()
+        return text or heuristic_polish(slide_contexts, transcript_lines)
+    except Exception:
+        return heuristic_polish(slide_contexts, transcript_lines)
+
+
 def transcript_text_for_window(segments, start_sec, end_sec):
     lines = []
     for seg in segments:
@@ -329,7 +495,34 @@ def transcript_text_for_window(segments, start_sec, end_sec):
     return lines
 
 
-def write_markdown(output_dir, source_value, video_path, anchors, transcript_json_path):
+def render_images_html(group, youtube_url):
+    if group["burst"] and len(group["images"]) > 1:
+        chunks = []
+        for image in group["images"]:
+            link = youtube_timestamp_url(youtube_url, image["timestamp_sec"]) if youtube_url else None
+            img_html = (
+                f'<img src="{image["image_relpath"]}" alt="{image["label"]}" width="{BURST_GRID_IMAGE_WIDTH}" />'
+            )
+            caption = f'<div><small>{image["label"]} at {image["timestamp"]}</small></div>'
+            if link:
+                chunks.append(f'<div style="display:inline-block; margin:8px; vertical-align:top;"><a href="{link}">{img_html}</a>{caption}</div>')
+            else:
+                chunks.append(f'<div style="display:inline-block; margin:8px; vertical-align:top;">{img_html}{caption}</div>')
+        return "<div>\n" + "\n".join(chunks) + "\n</div>\n\n"
+
+    parts = []
+    for image in group["images"]:
+        image_link = youtube_timestamp_url(youtube_url, image["timestamp_sec"]) if youtube_url else None
+        label = f"### {image['label']} ({image['kind']})\n\n"
+        if image_link:
+            image_html = f'<a href="{image_link}"><img src="{image["image_relpath"]}" alt="{image["label"]}" width="{DEFAULT_IMAGE_WIDTH}" /></a>\n\n'
+        else:
+            image_html = f'<img src="{image["image_relpath"]}" alt="{image["label"]}" width="{DEFAULT_IMAGE_WIDTH}" />\n\n'
+        parts.append(label + image_html)
+    return "".join(parts)
+
+
+def write_markdown(output_dir, source_value, video_path, groups, transcript_json_path, mode):
     transcript = load_json(transcript_json_path)
     segments = transcript.get("segments", [])
     total_duration = 0.0
@@ -346,33 +539,40 @@ def write_markdown(output_dir, source_value, video_path, anchors, transcript_jso
         f.write(f"- Source input: `{source_value}`\n")
         f.write(f"- Local video: `{rel_video_path}`\n")
         f.write(f"- Transcript JSON: `{rel_transcript_path}`\n")
-        f.write(f"- Visual anchors: `{len(anchors)}`\n\n")
+        f.write(f"- Mode: `{mode}`\n")
+        f.write(f"- Visual anchors: `{len(groups)}`\n\n")
         if youtube_url:
             f.write(f"- YouTube URL: {youtube_url}\n\n")
 
-        for idx, anchor_group in enumerate(anchors):
-            start_sec = 0.0 if idx == 0 else anchor_group["timestamp_sec"]
-            end_sec = anchors[idx + 1]["timestamp_sec"] if idx + 1 < len(anchors) else total_duration + 0.01
+        for idx, group in enumerate(groups):
+            start_sec = 0.0 if idx == 0 else group["timestamp_sec"]
+            end_sec = groups[idx + 1]["timestamp_sec"] if idx + 1 < len(groups) else total_duration + 0.01
             if idx == 0:
                 start_sec = 0.0
 
-            group_link = youtube_timestamp_url(youtube_url, anchor_group["timestamp_sec"]) if youtube_url else None
+            group_link = youtube_timestamp_url(youtube_url, group["timestamp_sec"]) if youtube_url else None
             if group_link:
-                f.write(f"## [{anchor_group['timestamp']}]({group_link})\n\n")
+                f.write(f"## [{group['timestamp']}]({group_link})\n\n")
             else:
-                f.write(f"## {anchor_group['timestamp']}\n\n")
-            for image in anchor_group["images"]:
-                rel_image = image["image_relpath"]
-                f.write(f"### {image['label']} ({image['kind']})\n\n")
-                image_link = youtube_timestamp_url(youtube_url, image["timestamp_sec"]) if youtube_url else None
-                if image_link:
-                    f.write(
-                        f'<a href="{image_link}"><img src="{rel_image}" alt="{image["label"]}" width="{DEFAULT_IMAGE_WIDTH}" /></a>\n\n'
-                    )
-                else:
-                    f.write(f'<img src="{rel_image}" alt="{image["label"]}" width="{DEFAULT_IMAGE_WIDTH}" />\n\n')
+                f.write(f"## {group['timestamp']}\n\n")
+            if group["burst"]:
+                timestamps = ", ".join(image["timestamp"] for image in group["images"])
+                f.write(f"_Rapid slide burst: {timestamps}_\n\n")
+            f.write(render_images_html(group, youtube_url))
 
             lines = transcript_text_for_window(segments, start_sec, end_sec)
+            if mode in {"context", "polish"}:
+                contexts = unique_slide_context_text(group)
+                if contexts:
+                    f.write("Slide Context:\n\n")
+                    for ctx in contexts[:3]:
+                        f.write(f"> {ctx[:240]}\n")
+                    f.write("\n")
+                if mode == "polish":
+                    polished = llm_polish(contexts, lines)
+                    if polished:
+                        f.write("Section Note:\n\n")
+                        f.write(f"{polished}\n\n")
             if lines:
                 f.write("Transcript:\n\n")
                 for line in lines:
@@ -388,8 +588,11 @@ def main():
     started = time.time()
     source = ARGS["source"]
     if not source:
-        print("Usage: python3 multimodal_extract.py <video_or_url> [output_dir] [--language en] [--whisper-model turbo] [--top-n 4]")
+        print("Usage: python3 multimodal_extract.py <video_or_url> [output_dir] [--mode swift|context|polish] [--language en] [--whisper-model turbo] [--top-n 4]")
         sys.exit(1)
+    mode = ARGS["mode"].lower()
+    if mode not in {"swift", "context", "polish"}:
+        raise RuntimeError(f"Unsupported mode: {ARGS['mode']}")
 
     require_binary("ffmpeg")
     require_binary("yt-dlp")
@@ -405,13 +608,16 @@ def main():
 
     print("=== Multimodal Extraction ===")
     print(f"Output dir: {output_dir}")
+    print(f"Mode: {mode}")
 
     video_path = resolve_video_source(source, source_dir)
     run_thumbnail_extraction(video_path, visuals_dir, ARGS["top_n"])
     audio_path = preprocess_audio(video_path, audio_dir)
     transcript_json_path = run_whisper(audio_path, transcript_dir, ARGS["whisper_model"], ARGS["language"])
-    anchors = build_visual_anchors(visuals_dir)
-    markdown_path = write_markdown(output_dir, source, video_path, anchors, transcript_json_path)
+    groups = cluster_visual_groups(build_visual_anchors(visuals_dir))
+    if mode in {"context", "polish"}:
+        enrich_slides_with_ocr(output_dir, groups)
+    markdown_path = write_markdown(output_dir, source, video_path, groups, transcript_json_path, mode)
 
     print(f"Markdown: {markdown_path}")
     print(f"Total runtime: {format_elapsed(time.time() - started)}")
