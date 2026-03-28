@@ -1,4 +1,15 @@
-# Swyx 2026 New Mac Setup — Quick Reference
+# Swyx 2026 New Mac Setup
+
+This skill is an opinionated, repeatable Apple Silicon Mac bootstrap for fullstack and AI development. It covers the full machine setup path: Xcode tools, Homebrew, shell config, package installs, local AI tooling, terminal setup, dotfiles, and macOS preferences.
+
+Use it when you want to set up a new machine from scratch, rebuild an existing dev box in a clean order, or generate scripts for someone else to run on their Mac.
+
+## What This Skill Produces
+
+- An ordered set of shell scripts for a full machine bootstrap
+- A reproducible install path for JS/TS, Python, Docker, CLI, and AI tooling
+- A consistent terminal setup around Ghostty + cmux
+- A documented set of manual follow-up steps for settings that cannot be scripted
 
 Based on [swyx.io/new-mac-setup](https://www.swyx.io/new-mac-setup) (2025) and [swyx.io/new-mac-setup-2024](https://www.swyx.io/new-mac-setup-2024)
 
@@ -16,6 +27,13 @@ chmod +x ./*.sh
 ./06-dotfiles.sh             # .zshrc with all config
 ./07-macos-settings.sh       # System preferences automation
 ```
+
+## When To Use It
+
+- Fresh Mac setup for a new job, contract, or personal machine
+- Rebuilding a machine after migration or wipe
+- Standardizing your stack across multiple Macs
+- Generating a customized setup sequence for another developer
 
 ## Key 2025 Opinions (what changed from 2024)
 

@@ -1,10 +1,19 @@
 # Download Video
 
-Downloads embedded videos from web pages using yt-dlp. Handles private/unlisted videos (especially Vimeo) by resolving the correct embed URL and adding referer headers.
+Downloads embedded videos from web pages using `yt-dlp`. This skill is for cases where the obvious video URL fails because the real downloadable source is hidden behind an embed player, referer restriction, or private/unlisted hosting setup.
+
+Use it when a page contains a Vimeo, YouTube, Wistia, Brightcove, Loom, or similar embedded player and you want the actual media file locally.
 
 ## Problem
 
 Many videos on event pages, forums, and course platforms are private/unlisted embeds. The direct video URL (e.g., `vimeo.com/123456`) returns 404. You need the embed player URL (`player.vimeo.com/video/123456`) plus the correct referer header to download them.
+
+## What This Skill Does
+
+- Inspects the source page for iframe, metadata, and player config hints
+- Resolves the correct embed/player URL instead of the public landing page URL
+- Adds `referer` and `origin` headers when the host requires them
+- Falls back through progressively stronger `yt-dlp` invocation patterns
 
 ## How It Works
 
