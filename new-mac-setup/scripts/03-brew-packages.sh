@@ -24,6 +24,7 @@ FORMULAE=(
     git             # Latest git
     fnm             # Fast Node Manager (not nvm!)
     pnpm            # Fast npm alternative
+    bun             # Fast JS runtime, bundler, package manager
     z               # Directory jumping
     diff-so-fancy   # Better git diffs
 
@@ -59,7 +60,6 @@ FORMULAE=(
     flyctl          # Fly.io CLI
     entr            # File watcher
     tig             # Git TUI
-    terminal-notifier # Better standard macOS notifications
 
     # Mac App Store CLI
     mas             # Install App Store apps from CLI

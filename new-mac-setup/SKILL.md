@@ -25,7 +25,7 @@ The setup is opinionated. The core opinions:
 
 - **Terminal**: Ghostty (fast, GPU-accelerated, Zig) + cmux (vertical tabs, split panes, socket API for AI agents). cmux reads Ghostty's config, so one config file serves both.
 - **Shell**: ZSH with Oh-My-ZSH, powerlevel10k theme, zsh-autosuggestions, zsh-syntax-highlighting
-- **Node**: fnm (not nvm — fnm is faster), pnpm as package manager
+- **Node**: fnm (not nvm — fnm is faster), pnpm and bun for package management/runtime
 - **Python**: uv from Astral (not pyenv, not pip, not conda — uv is dramatically faster and handles both venvs and package installs)
 - **Docker**: Colima (not Docker Desktop — lighter weight, CLI-native, free)
 - **Editor**: Cursor (AI-native editor)
@@ -107,7 +107,7 @@ These are real issues encountered during testing. The scripts in `scripts/` alre
 
 ```
 # Core dev tools
-gh, git, fnm, pnpm, z, diff-so-fancy
+gh, git, fnm, pnpm, bun, z, diff-so-fancy
 
 # Languages & runtimes
 elixir, erlang, python@3.13
